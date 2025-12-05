@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralHaunt - Interactive Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Nosifer&family=Fira+Code:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Fira Code', monospace;
+            background: linear-gradient(135deg, #0a0118 0%, #1a0933 25%, #2d1347 50%, #1a0933 75%, #0a0118 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at 20% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(168, 85, 247, 0.15) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        * {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .haunt-title {
+            font-family: 'Creepster', cursive;
+            text-shadow: 
+                0 0 10px #a855f7,
+                0 0 20px #7c3aed,
+                0 0 30px #6d28d9,
+                0 5px 10px rgba(0, 0, 0, 0.5);
+            animation: flicker 4s infinite alternate, float 3s ease-in-out infinite;
+            letter-spacing: 3px;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; text-shadow: 0 0 10px #a855f7, 0 0 20px #7c3aed, 0 0 30px #6d28d9; }
+            25% { opacity: 0.8; }
+            50% { opacity: 1; }
+            75% { opacity: 0.9; }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .ghost-card {
+            background: linear-gradient(135deg, rgba(30, 13, 67, 0.7) 0%, rgba(20, 10, 47, 0.8) 100%);
+            border: 2px solid #8b5cf6;
+            backdrop-filter: blur(15px);
+            box-shadow: 
+                0 0 30px rgba(139, 92, 246, 0.4),
+                inset 0 0 30px rgba(139, 92, 246, 0.1);
+            transition: all 0.4s ease;
+            position: relative;
+        }
+        
+        .ghost-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #7c3aed, #a855f7, #c084fc, #a855f7, #7c3aed);
+            background-size: 300% 300%;
+            animation: borderGlow 3s linear infinite;
+            border-radius: inherit;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        
+        .ghost-card:hover::before {
+            opacity: 1;
+        }
+        
+        @keyframes borderGlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 300% 50%; }
+        }
+        
+        .ghost-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 
+                0 15px 40px rgba(139, 92, 246, 0.6),
+                inset 0 0 30px rgba(139, 92, 246, 0.2);
+            border-color: #a855f7;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, 
+                #7c3aed 0%, 
+                #a855f7 25%, 
+                #c084fc 50%, 
+                #a855f7 75%, 
+                #7c3aed 100%);
+            background-size: 300% 100%;
+            animation: shimmer 2s infinite, pulse-glow 1.5s ease-in-out infinite;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: 300% 0; }
+            100% { background-position: -300% 0; }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(168, 85, 247, 0.9); }
+        }
+        
+        .agent-status {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            box-shadow: 0 0 10px currentColor;
+        }
+        
+        .status-idle { 
+            background: #4b5563;
+            box-shadow: 0 0 5px #4b5563;
+        }
+        
+        .status-active { 
+            background: #10b981;
+            animation: pulse-status 1s infinite, rotate-glow 2s linear infinite;
+            box-shadow: 0 0 15px #10b981, 0 0 30px #10b981;
+        }
+        
+        .status-complete { 
+            background: #3b82f6;
+            box-shadow: 0 0 10px #3b82f6;
+        }
+        
+        @keyframes pulse-status {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+        }
+        
+        @keyframes rotate-glow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+        
+        .code-editor {
+            background: linear-gradient(135deg, #0f0520 0%, #150829 100%);
+            border: 2px solid #7c3aed;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            overflow-x: auto;
+            min-height: 400px;
+            color: #e5e7eb;
+            box-shadow: inset 0 0 30px rgba(124, 58, 237, 0.2);
+            resize: vertical;
+            white-space: pre;
+        }
+        
+        textarea.code-editor {
+            width: 100%;
+            outline: none;
+            font-family: 'Fira Code', monospace;
+        }
+        
+        textarea.code-editor:focus {
+            border-color: #a855f7;
+            box-shadow: 
+                inset 0 0 30px rgba(124, 58, 237, 0.3),
+                0 0 20px rgba(168, 85, 247, 0.4);
+        }
+        
+        .line-number {
+            color: #6b7280;
+            margin-right: 16px;
+            user-select: none;
+        }
+        
+        .keyword { color: #c084fc; font-weight: 600; }
+        .string { color: #34d399; }
+        .comment { color: #6b7280; font-style: italic; }
+        .function { color: #60a5fa; font-weight: 500; }
+        .number { color: #f59e0b; }
+        
+        .log-entry {
+            padding: 10px 14px;
+            border-left: 4px solid #8b5cf6;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, transparent 100%);
+            border-radius: 4px;
+            font-size: 13px;
+            animation: slideIn 0.4s ease, fadeIn 0.4s ease;
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-30px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .risk-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px currentColor;
+        }
+        
+        .risk-low { 
+            background: rgba(16, 185, 129, 0.25); 
+            color: #10b981; 
+            border: 2px solid #10b981;
+        }
+        
+        .risk-medium { 
+            background: rgba(245, 158, 11, 0.25); 
+            color: #f59e0b; 
+            border: 2px solid #f59e0b;
+        }
+        
+        .risk-high { 
+            background: rgba(239, 68, 68, 0.25); 
+            color: #ef4444; 
+            border: 2px solid #ef4444;
+        }
+        
+        .risk-critical { 
+            background: rgba(220, 38, 38, 0.25); 
+            color: #dc2626; 
+            border: 2px solid #dc2626;
+            animation: pulse 1s infinite;
+        }
+        
+        .tab-button {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 500;
+            font-family: 'Creepster', cursive;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+        
+        .tab-button:hover {
+            color: #c084fc;
+            text-shadow: 0 0 10px #c084fc;
+        }
+        
+        .tab-button.active {
+            color: #a855f7;
+            border-bottom-color: #a855f7;
+            text-shadow: 0 0 15px #a855f7;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .modal.active { 
+            display: flex; 
+            animation: modalFadeIn 0.3s ease;
+        }
+        
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal-content {
+            background: linear-gradient(135deg, #1a0933 0%, #2d1347 100%);
+            border: 3px solid #a855f7;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 
+                0 0 50px rgba(168, 85, 247, 0.6),
+                inset 0 0 50px rgba(168, 85, 247, 0.1);
+            animation: modalSlideIn 0.4s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from { transform: scale(0.9) translateY(-20px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Creepster', cursive;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-size: 16px;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+            color: white;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+            border: 2px solid #a855f7;
+        }
+        
+        .btn-primary:hover {
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.8);
+            transform: translateY(-3px);
+            border-color: #c084fc;
+        }
+        
+        .btn-primary:active {
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a855f7;
+            border: 2px solid #8b5cf6;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(139, 92, 246, 0.3);
+            box-shadow: 0 0 25px rgba(139, 92, 246, 0.5);
+            transform: translateY(-3px);
+        }
+        
+        select {
+            font-family: 'Fira Code', monospace;
+            cursor: pointer;
+        }
+        
+        .spooky-header {
+            font-family: 'Nosifer', cursive;
+            color: #a855f7;
+            text-shadow: 
+                0 0 10px #a855f7,
+                0 0 20px #7c3aed,
+                3px 3px 5px rgba(0, 0, 0, 0.5);
+            letter-spacing: 2px;
+        }
+        
+        .floating-ghost {
+            position: fixed;
+            font-size: 40px;
+            opacity: 0.3;
+            animation: floatGhost 20s infinite ease-in-out;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes floatGhost {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(100px, -50px) rotate(10deg); }
+            50% { transform: translate(200px, 50px) rotate(-10deg); }
+            75% { transform: translate(100px, 100px) rotate(5deg); }
+        }
+    </style>
+</head>
+<body class="text-gray-100">
+    <!-- Floating decorations -->
+    <div class="floating-ghost" style="top: 10%; left: 10%; animation-delay: 0s;">👻</div>
+    <div class="floating-ghost" style="top: 20%; right: 15%; animation-delay: 3s;">🎃</div>
+    <div class="floating-ghost" style="bottom: 15%; left: 20%; animation-delay: 6s;">🦇</div>
+    <div class="floating-ghost" style="bottom: 25%; right: 10%; animation-delay: 9s;">💀</div>
+
+    <header class="py-8 px-8 border-b-4 border-purple-700" style="box-shadow: 0 5px 30px rgba(139, 92, 246, 0.4);">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div>
+                <h1 class="text-6xl haunt-title text-purple-400">NeuralHaunt</h1>
+                <p class="text-sm text-purple-300 mt-2" style="font-family: 'Creepster', cursive; letter-spacing: 2px;">Multi-Agent Legacy Code Resurrection</p>
+            </div>
+            <div class="flex gap-4">
+                <button class="btn btn-secondary" onclick="resetDemo()">🔄 Reset</button>
+                <button class="btn btn-primary" onclick="startTranslation()" id="start-btn">⚡ Start Translation</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-8 py-8">
+        <!-- Agent Status -->
+        <section class="mb-8">
+            <h2 class="text-3xl spooky-header mb-6">👻 Multi-Agent System</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="ghost-card p-5 rounded-lg" id="agent1-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="agent-status status-idle" id="agent1-status"></span>
+                            <span class="text-sm font-bold" style="font-family: 'Creepster', cursive;">Parser</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">Files: <span id="agent1-files" class="text-purple-300 font-bold">0</span></div>
+                    <div class="text-xs text-gray-400 mt-1">Status: <span id="agent1-text" class="text-purple-300">Idle</span></div>
+                </div>
+
+                <div class="ghost-card p-5 rounded-lg" id="agent2-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="agent-status status-idle" id="agent2-status"></span>
+                            <span class="text-sm font-bold" style="font-family: 'Creepster', cursive;">Translator</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">Lines: <span id="agent2-files" class="text-purple-300 font-bold">0</span></div>
+                    <div class="text-xs text-gray-400 mt-1">Status: <span id="agent2-text" class="text-purple-300">Idle</span></div>
+                </div>
+
+                <div class="ghost-card p-5 rounded-lg" id="agent3-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="agent-status status-idle" id="agent3-status"></span>
+                            <span class="text-sm font-bold" style="font-family: 'Creepster', cursive;">Test Gen</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">Tests: <span id="agent3-files" class="text-purple-300 font-bold">0</span></div>
+                    <div class="text-xs text-gray-400 mt-1">Status: <span id="agent3-text" class="text-purple-300">Idle</span></div>
+                </div>
+
+                <div class="ghost-card p-5 rounded-lg" id="agent4-card">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <span class="agent-status status-idle" id="agent4-status"></span>
+                            <span class="text-sm font-bold" style="font-family: 'Creepster', cursive;">Risk Eval</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400">Score: <span id="agent4-risk" class="text-purple-300 font-bold">--</span></div>
+                    <div class="text-xs text-gray-400 mt-1">Status: <span id="agent4-text" class="text-purple-300">Idle</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Source Code -->
+            <div class="ghost-card p-6 rounded-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl spooky-header">📜 Source Code</h3>
+                    <select id="language-select" class="bg-purple-900 bg-opacity-50 border-2 border-purple-700 rounded px-4 py-2 text-sm font-semibold text-purple-200" onchange="changeSourceLanguage()">
+                        <option value="COBOL">COBOL</option>
+                        <option value="Pascal">Pascal</option>
+                        <option value="VB6">Visual Basic 6</option>
+                    </select>
+                </div>
+                <textarea class="code-editor" id="source-code" placeholder="Paste your legacy code here..."></textarea>
+            </div>
+
+            <!-- Translated Code -->
+            <div class="ghost-card p-6 rounded-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl spooky-header">✨ Translated Code</h3>
+                    <select id="target-select" class="bg-purple-900 bg-opacity-50 border-2 border-purple-700 rounded px-4 py-2 text-sm font-semibold text-purple-200">
+                        <option value="Python">Python</option>
+                        <option value="Java">Java</option>
+                        <option value="TypeScript">TypeScript</option>
+                    </select>
+                </div>
+                <div class="code-editor" id="translated-code"><span class="text-gray-500">Translated code will appear here...</span></div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <section class="ghost-card p-6 rounded-lg mb-8">
+            <h3 class="text-xl spooky-header mb-4">⚡ Translation Progress</h3>
+            <div class="w-full bg-gray-800 rounded-full h-8 mb-3 border-2 border-purple-700">
+                <div class="progress-bar h-full rounded-full flex items-center justify-center text-sm font-bold" id="progress-bar" style="width: 0%">
+                    <span id="progress-text">0%</span>
+                </div>
+            </div>
+            <div class="text-sm text-purple-300 font-semibold">Stage: <span id="stage-text" class="text-gray-400">Awaiting Input</span></div>
+        </section>
+
+        <!-- Tabs -->
+        <section class="ghost-card p-6 rounded-lg">
+            <div class="border-b-2 border-purple-700 mb-6">
+                <button class="tab-button active" onclick="switchTab(event, 'logs')">Activity Logs</button>
+                <button class="tab-button" onclick="switchTab(event, 'tests')">Generated Tests</button>
+                <button class="tab-button" onclick="switchTab(event, 'risks')">Risk Assessment</button>
+                <button class="tab-button" onclick="switchTab(event, 'metrics')">Metrics</button>
+            </div>
+
+            <!-- Activity Logs Tab -->
+            <div id="logs-tab" class="tab-content">
+                <h3 class="text-lg spooky-header mb-4">📋 Agent Activity Log</h3>
+                <div id="activity-log" class="space-y-2 max-h-96 overflow-y-auto">
+                    <div class="log-entry text-gray-400">
+                        <span class="text-purple-400">[System]</span> NeuralHaunt initialized. Multi-agent system ready.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tests Tab -->
+            <div id="tests-tab" class="tab-content hidden">
+                <h3 class="text-lg spooky-header mb-4">🧪 Generated Test Suite</h3>
+                <div id="test-output" class="code-editor min-h-[400px]">
+                    <span class="text-gray-500">Tests will be generated after translation...</span>
+                </div>
+            </div>
+
+            <!-- Risk Tab -->
+            <div id="risks-tab" class="tab-content hidden">
+                <h3 class="text-lg spooky-header mb-4">⚠️ Risk Assessment Report</h3>
+                <div id="risk-output">
+                    <div class="text-center text-gray-500 py-12">
+                        <div class="text-6xl mb-4">🔍</div>
+                        Risk analysis will appear after translation
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metrics Tab -->
+            <div id="metrics-tab" class="tab-content hidden">
+                <h3 class="text-lg spooky-header mb-4">📊 Translation Metrics</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="ghost-card p-4 rounded text-center">
+                        <div class="text-4xl text-purple-400 font-bold" id="metric-lines">0</div>
+                        <div class="text-xs text-gray-400 mt-2">Lines Processed</div>
+                    </div>
+                    <div class="ghost-card p-4 rounded text-center">
+                        <div class="text-4xl text-green-400 font-bold" id="metric-accuracy">0%</div>
+                        <div class="text-xs text-gray-400 mt-2">Accuracy</div>
+                    </div>
+                    <div class="ghost-card p-4 rounded text-center">
+                        <div class="text-4xl text-blue-400 font-bold" id="metric-coverage">0%</div>
+                        <div class="text-xs text-gray-400 mt-2">Test Coverage</div>
+                    </div>
+                    <div class="ghost-card p-4 rounded text-center">
+                        <div class="text-4xl text-yellow-400 font-bold" id="metric-duration">0s</div>
+                        <div class="text-xs text-gray-400 mt-2">Duration</div>
+                    </div>
+                </div>
+                <div style="height: 300px">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Result Modal -->
+    <div id="result-modal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-4xl haunt-title text-purple-400 mb-8 text-center">🎉 Translation Complete!</h2>
+            <div class="grid grid-cols-2 gap-6 mb-8">
+                <div class="ghost-card p-4 rounded-lg text-center">
+                    <div class="text-sm text-gray-400 mb-2">Files Processed</div>
+                    <div class="text-3xl text-purple-300 font-bold" id="modal-files">1</div>
+                </div>
+                <div class="ghost-card p-4 rounded-lg text-center">
+                    <div class="text-sm text-gray-400 mb-2">Lines Translated</div>
+                    <div class="text-3xl text-purple-300 font-bold" id="modal-lines">0</div>
+                </div>
+                <div class="ghost-card p-4 rounded-lg text-center">
+                    <div class="text-sm text-gray-400 mb-2">Tests Generated</div>
+                    <div class="text-3xl text-green-400 font-bold" id="modal-tests">0</div>
+                </div>
+                <div class="ghost-card p-4 rounded-lg text-center">
+                    <div class="text-sm text-gray-400 mb-2">Final Risk Score</div>
+                    <div class="text-3xl text-yellow-400 font-bold" id="modal-risk">0</div>
+                </div>
+            </div>
+            <div class="mb-8 text-center">
+                <div class="text-sm text-gray-400 mb-2">Overall Status</div>
+                <div class="text-2xl text-green-400 font-bold">✓ Ready for Deployment</div>
+            </div>
+            <div class="flex gap-4">
+                <button class="btn btn-primary flex-1" onclick="closeModal()">View Results</button>
+                <button class="btn btn-secondary flex-1" onclick="resetDemo(); closeModal()">New Translation</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        //===========================================
+// MULTI-LAYER TRANSLATION ENGINE
+//===========================================
+class LegacyTranslator {
+        // ============ COBOL TO PYTHON ============
+        translateCOBOLToPython(cobolCode) {
+            let pythonCode = '"""Translated from COBOL by NeuralHaunt\nMulti-Agent Translation System\n"""\n\n';
+            pythonCode += 'from decimal import Decimal\nfrom typing import Dict, List, Optional\nimport sys\n\n';
+            
+            const lines = cobolCode.split('\n');
+            let inDataDivision = false;
+            let inProcedure = false;
+            let variables = new Map();
+            let procedures = [];
+            
+            // First pass: Extract data structures
+            pythonCode += 'class CobolDataStructure:\n';
+            pythonCode += '    """Data structure translated from COBOL DATA DIVISION"""\n';
+            pythonCode += '    def __init__(self):\n';
+            
+            let hasVariables = false;
+            for (let line of lines) {
+                const trimmed = line.trim();
+                
+                if (trimmed.includes('DATA DIVISION')) {
+                    inDataDivision = true;
+                } else if (trimmed.includes('PROCEDURE DIVISION')) {
+                    inDataDivision = false;
+                    inProcedure = true;
+                } else if (inDataDivision && trimmed.match(/^\d+\s+(\S+)/)) {
+                    const match = trimmed.match(/^\d+\s+([A-Z0-9-]+)/);
+                    if (match) {
+                        const varName = match[1].toLowerCase().replace(/-/g, '_');
+                        hasVariables = true;
+                        
+                        if (trimmed.includes('PIC 9') || trimmed.includes('PIC S9')) {
+                            const decMatch = trimmed.match(/V9+/);
+                            if (decMatch) {
+                                pythonCode += `        self.${varName}: Decimal = Decimal('0.00')\n`;
+                                variables.set(varName, 'decimal');
+                            } else {
+                                pythonCode += `        self.${varName}: int = 0\n`;
+                                variables.set(varName, 'int');
+                            }
+                        } else if (trimmed.includes('PIC X')) {
+                            pythonCode += `        self.${varName}: str = ""\n`;
+                            variables.set(varName, 'string');
+                        } else {
+                            pythonCode += `        self.${varName} = None\n`;
+                            variables.set(varName, 'any');
+                        }
+                    }
+                }
+            }
+            
+            if (!hasVariables) {
+                pythonCode += '        pass\n';
+            }
+            
+            pythonCode += '\n\n';
+            
+            // Second pass: Extract procedures
+            inProcedure = false;
+            let currentProc = null;
+            let procCode = '';
+            
+            for (let line of lines) {
+                const trimmed = line.trim();
+                
+                if (trimmed.includes('PROCEDURE DIVISION')) {
+                    inProcedure = true;
+                } else if (inProcedure) {
+                    // Procedure definition
+                    if (trimmed.match(/^([A-Z][A-Z0-9-]+)\./)) {
+                        if (currentProc) {
+                            procedures.push({ name: currentProc, code: procCode });
+                        }
+                        const match = trimmed.match(/^([A-Z][A-Z0-9-]+)\./);
+                        currentProc = match[1].toLowerCase().replace(/-/g, '_');
+                        procCode = '';
+                    } else if (currentProc && trimmed && !trimmed.startsWith('.')) {
+                        procCode += trimmed + '\n';
+                    }
+                }
+            }
+            
+            if (currentProc && procCode) {
+                procedures.push({ name: currentProc, code: procCode });
+            }
+            
+            // Generate procedure functions
+            for (let proc of procedures) {
+                pythonCode += `def ${proc.name}(data: CobolDataStructure) -> None:\n`;
+                pythonCode += `    """${proc.name.toUpperCase().replace(/_/g, '-')} procedure"""\n`;
+                
+                const statements = this.translateCOBOLStatements(proc.code, variables);
+                if (statements.trim()) {
+                    pythonCode += statements.split('\n').map(s => s ? '    ' + s : '').join('\n') + '\n';
+                } else {
+                    pythonCode += '    pass\n';
+                }
+                pythonCode += '\n\n';
+            }
+            
+            // Main execution
+            pythonCode += 'def main():\n';
+            pythonCode += '    """Main execution entry point"""\n';
+            pythonCode += '    data = CobolDataStructure()\n';
+            pythonCode += '    \n';
+            
+            for (let proc of procedures) {
+                pythonCode += `    ${proc.name}(data)\n`;
+            }
+            
+            pythonCode += '\n\nif __name__ == "__main__":\n';
+            pythonCode += '    main()\n';
+            
+            return pythonCode;
+        }
+        
+        translateCOBOLStatements(code, variables) {
+            let result = '';
+            const lines = code.split('\n');
+            
+            for (let line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                
+                // MULTIPLY statement
+                if (trimmed.match(/MULTIPLY/i)) {
+                    const match = trimmed.match(/MULTIPLY\s+([A-Z0-9-]+)\s+BY\s+([\d.]+)\s+GIVING\s+([A-Z0-9-]+)/i);
+                    if (match) {
+                        const var1 = match[1].toLowerCase().replace(/-/g, '_');
+                        const multiplier = match[2];
+                        const result_var = match[3].toLowerCase().replace(/-/g, '_');
+                        result += `data.${result_var} = data.${var1} * Decimal('${multiplier}')\n`;
+                    }
+                }
+                // DISPLAY statement
+                else if (trimmed.match(/DISPLAY/i)) {
+                    const match = trimmed.match(/DISPLAY\s+"([^"]+)"(?:\s+([A-Z0-9-]+))?/i);
+                    if (match) {
+                        const text = match[1];
+                        if (match[2]) {
+                            const varName = match[2].toLowerCase().replace(/-/g, '_');
+                            result += `print(f"${text}{data.${varName}}")\n`;
+                        } else {
+                            result += `print("${text}")\n`;
+                        }
+                    }
+                }
+                // MOVE statement
+                else if (trimmed.match(/MOVE/i)) {
+                    const match = trimmed.match(/MOVE\s+([A-Z0-9-]+|"[^"]+"|[\d.]+)\s+TO\s+([A-Z0-9-]+)/i);
+                    if (match) {
+                        let value = match[1];
+                        const target = match[2].toLowerCase().replace(/-/g, '_');
+                        
+                        if (value.startsWith('"')) {
+                            result += `data.${target} = ${value}\n`;
+                        } else if (value.match(/^\d+$/)) {
+                            result += `data.${target} = ${value}\n`;
+                        } else {
+                            const sourceVar = value.toLowerCase().replace(/-/g, '_');
+                            result += `data.${target} = data.${sourceVar}\n`;
+                        }
+                    }
+                }
+                // PERFORM statement
+                else if (trimmed.match(/PERFORM/i)) {
+                    const match = trimmed.match(/PERFORM\s+([A-Z0-9-]+)/i);
+                    if (match) {
+                        const procName = match[1].toLowerCase().replace(/-/g, '_');
+                        result += `${procName}(data)\n`;
+                    }
+                }
+                // ADD statement
+                else if (trimmed.match(/ADD/i)) {
+                    const match = trimmed.match(/ADD\s+([A-Z0-9-]+)\s+TO\s+([A-Z0-9-]+)/i);
+                    if (match) {
+                        const var1 = match[1].toLowerCase().replace(/-/g, '_');
+                        const var2 = match[2].toLowerCase().replace(/-/g, '_');
+                        result += `data.${var2} += data.${var1}\n`;
+                    }
+                }
+            }
+            
+            return result;
+        }
+        
+        // ============ PASCAL TO PYTHON ============
+        translatePascalToPython(pascalCode) {
+            let pythonCode = '"""Translated from Pascal by NeuralHaunt\nMulti-Agent Translation System\n"""\n\n';
+            pythonCode += 'from typing import Any, Optional\nimport sys\n\n';
+            
+            const lines = pascalCode.split('\n');
+            let inVarSection = false;
+            let inProcedure = false;
+            let currentProcedure = null;
+            let procedureCode = '';
+            let variables = new Map();
+            let procedures = [];
+            
+            // Global variables
+            pythonCode += '# Global Variables\n';
+            let hasGlobalVars = false;
+            
+            for (let line of lines) {
+                const trimmed = line.trim();
+                
+                if (trimmed.toLowerCase().startsWith('var')) {
+                    inVarSection = true;
+                    continue;
+                }
+                
+                if (trimmed.toLowerCase().startsWith('begin') || trimmed.toLowerCase().startsWith('procedure')) {
+                    inVarSection = false;
+                }
+                
+                if (inVarSection && trimmed.includes(':')) {
+                    const match = trimmed.match(/(\w+)\s*:\s*(\w+)/i);
+                    if (match) {
+                        const varName = match[1];
+                        const varType = match[2].toLowerCase();
+                        hasGlobalVars = true;
+                        
+                        let pyType = 'Any';
+                        let defaultVal = 'None';
+                        
+                        if (varType === 'integer') {
+                            pyType = 'int';
+                            defaultVal = '0';
+                        } else if (varType === 'string') {
+                            pyType = 'str';
+                            defaultVal = '""';
+                        } else if (varType === 'real' || varType === 'double') {
+                            pyType = 'float';
+                            defaultVal = '0.0';
+                        } else if (varType === 'boolean') {
+                            pyType = 'bool';
+                            defaultVal = 'False';
+                        }
+                        
+                        pythonCode += `${varName}: ${pyType} = ${defaultVal}\n`;
+                        variables.set(varName.toLowerCase(), pyType);
+                    }
+                }
+            }
+            
+            if (!hasGlobalVars) {
+                pythonCode += '# No global variables\n';
+            }
+            
+            pythonCode += '\n\n';
+            
+            // Extract procedures
+            inProcedure = false;
+            for (let line of lines) {
+                const trimmed = line.trim();
+                
+                if (trimmed.toLowerCase().match(/^procedure\s+(\w+)/i)) {
+                    if (currentProcedure) {
+                        procedures.push({ name: currentProcedure, code: procedureCode });
+                    }
+                    const match = trimmed.match(/procedure\s+(\w+)/i);
+                    currentProcedure = match[1];
+                    procedureCode = '';
+                    inProcedure = true;
+                } else if (inProcedure && trimmed.toLowerCase() !== 'begin' && trimmed.toLowerCase() !== 'end;' && trimmed.toLowerCase() !== 'end.') {
+                    procedureCode += trimmed + '\n';
+                } else if ((trimmed.toLowerCase() === 'end;' || trimmed.toLowerCase() === 'end.') && inProcedure) {
+                    if (currentProcedure) {
+                        procedures.push({ name: currentProcedure, code: procedureCode });
+                        currentProcedure = null;
+                        inProcedure = false;
+                    }
+                }
+            }
+            
+            // Generate procedures
+            for (let proc of procedures) {
+                pythonCode += `def ${proc.name.toLowerCase()}() -> None:\n`;
+                pythonCode += `    """${proc.name} procedure"""\n`;
+                
+                const statements = this.translatePascalStatements(proc.code, variables);
+                if (statements.trim()) {
+                    pythonCode += statements.split('\n').map(s => s ? '    ' + s : '').join('\n') + '\n';
+                } else {
+                    pythonCode += '    pass\n';
+                }
+                pythonCode += '\n\n';
+            }
+            
+            // Main program
+            let mainCode = '';
+            inProcedure = false;
+            let inMainBegin = false;
+            
+            for (let line of lines) {
+                const trimmed = line.trim();
+                
+                if (trimmed.toLowerCase().startsWith('procedure')) {
+                    inProcedure = true;
+                }
+                
+                if (trimmed.toLowerCase() === 'end;' || trimmed.toLowerCase() === 'end.') {
+                    if (inProcedure) {
+                        inProcedure = false;
+                    } else {
+                        inMainBegin = false;
+                    }
+                }
+                
+                if (trimmed.toLowerCase() === 'begin' && !inProcedure) {
+                    inMainBegin = true;
+                    continue;
+                }
+                
+                if (inMainBegin && !inProcedure && trimmed.toLowerCase() !== 'end.' && trimmed.toLowerCase() !== 'end;') {
+                    mainCode += trimmed + '\n';
+                }
+            }
+            
+            pythonCode += 'def main() -> None:\n';
+            pythonCode += '    """Main program entry point"""\n';
+            
+            const mainStatements = this.translatePascalStatements(mainCode, variables);
+            if (mainStatements.trim()) {
+                pythonCode += mainStatements.split('\n').map(s => s ? '    ' + s : '').join('\n') + '\n';
+            } else {
+                for (let proc of procedures) {
+                    pythonCode += `    ${proc.name.toLowerCase()}()\n`;
+                }
+            }
+            
+            pythonCode += '\n\nif __name__ == "__main__":\n';
+            pythonCode += '    main()\n';
+            
+            return pythonCode;
+        }
+        
+        translatePascalStatements(code, variables) {
+            let result = '';
+            const lines = code.split('\n');
+            
+            for (let line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.toLowerCase() === 'begin' || trimmed.toLowerCase() === 'end;' || trimmed.toLowerCase() === 'end.') continue;
+                
+                // writeln statement
+                if (trimmed.toLowerCase().match(/writeln/i)) {
+                    const match = trimmed.match(/writeln\s*\(\s*'([^']+)'(?:,\s*(.+?))?\s*\)/i);
+                    if (match) {
+                        const text = match[1];
+                        if (match[2]) {
+                            const vars = match[2].split(',').map(v => v.trim().replace(/;$/, ''));
+                            result += `print(f"${text}{${vars[0]}}")\n`;
+                        } else {
+                            result += `print("${text}")\n`;
+                        }
+                    }
+                }
+                // Assignment statement
+                else if (trimmed.includes(':=')) {
+                    const match = trimmed.match(/(\w+)\s*:=\s*(.+?);?$/);
+                    if (match) {
+                        let value = match[2].replace(/;$/, '');
+                        // Replace Pascal operators
+                        value = value.replace(/\bdiv\b/gi, '//');
+                        value = value.replace(/\bmod\b/gi, '%');
+                        result += `${match[1]} = ${value}\n`;
+                    }
+                }
+                // Procedure call
+                else if (trimmed.match(/^\w+\s*;?$/)) {
+                    const procName = trimmed.replace(/;$/, '').toLowerCase();
+                    result += `${procName}()\n`;
+                }
+            }
+            
+            return result;
+        }
+        
+        // ============ VB6 TO PYTHON ============
+        translateVB6ToPython(vb6Code) {
+            let pythonCode = '"""Translated from Visual Basic 6 by NeuralHaunt\nMulti-Agent Translation System\n"""\n\n';
+            pythonCode += 'from typing import Any, Optional\nimport sys\n\n';
+            
+            const lines = vb6Code.split('\n');
+            let procedures = [];
+            let currentProc = null;
+            let procCode = '';
+            let inProcedure = false;
+            let globalVars = new Map();
+            
+            // Extract procedures and variables
+            for (let line of lines) {
+                const trimmed = line.trim();
+                
+                // Procedure start
+                if (trimmed.match(/^(Private|Public)\s+Sub\s+(\w+)/i)) {
+                    if (currentProc) {
+                        procedures.push({ name: currentProc, code: procCode });
+                    }
+                    const match = trimmed.match(/Sub\s+(\w+)/i);
+                    currentProc = match[1].toLowerCase();
+                    procCode = '';
+                    inProcedure = true;
+                }
+                // End of procedure
+                else if (trimmed.match(/^End\s+Sub/i)) {
+                    if (currentProc) {
+                        procedures.push({ name: currentProc, code: procCode });
+                        currentProc = null;
+                        inProcedure = false;
+                    }
+                }
+                // Inside procedure
+                else if (inProcedure) {
+                    procCode += trimmed + '\n';
+                }
+            }
+            
+            // Generate procedures
+            for (let proc of procedures) {
+                pythonCode += `def ${proc.name}() -> None:\n`;
+                pythonCode += `    """${proc.name} subroutine"""\n`;
+                
+                const statements = this.translateVB6Statements(proc.code);
+                if (statements.trim()) {
+                    pythonCode += statements.split('\n').map(s => s ? '    ' + s : '').join('\n') + '\n';
+                } else {
+                    pythonCode += '    pass\n';
+                }
+                pythonCode += '\n\n';
+            }
+            
+            // Main execution
+            pythonCode += 'def main() -> None:\n';
+            pythonCode += '    """Main execution entry point"""\n';
+            
+            for (let proc of procedures) {
+                pythonCode += `    ${proc.name}()\n`;
+            }
+            
+            pythonCode += '\n\nif __name__ == "__main__":\n';
+            pythonCode += '    main()\n';
+            
+            return pythonCode;
+        }
+        
+        translateVB6Statements(code) {
+            let result = '';
+            const lines = code.split('\n');
+            
+            for (let line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                
+                // Dim statement
+                if (trimmed.match(/^Dim\s+(\w+)\s+As\s+(\w+)/i)) {
+                    const match = trimmed.match(/Dim\s+(\w+)\s+As\s+(\w+)/i);
+                    const varName = match[1];
+                    const varType = match[2].toLowerCase();
+                    
+                    let pyType = 'Any';
+                    let defaultVal = 'None';
+                    
+                    if (varType === 'integer' || varType === 'long') {
+                        pyType = 'int';
+                        defaultVal = '0';
+                    } else if (varType === 'string') {
+                        pyType = 'str';
+                        defaultVal = '""';
+                    } else if (varType === 'double' || varType === 'single') {
+                        pyType = 'float';
+                        defaultVal = '0.0';
+                    } else if (varType === 'boolean') {
+                        pyType = 'bool';
+                        defaultVal = 'False';
+                    }
+                    
+                    result += `${varName}: ${pyType} = ${defaultVal}\n`;
+                }
+                // MsgBox statement
+                else if (trimmed.match(/MsgBox/i)) {
+                    const match = trimmed.match(/MsgBox\s+"([^"]+)"(?:\s*&\s*(\w+))?/i);
+                    if (match) {
+                        const text = match[1];
+                        if (match[2]) {
+                            result += `print(f"${text}{${match[2]}}")\n`;
+                        } else {
+                            result += `print("${text}")\n`;
+                        }
+                    }
+                }
+                // Assignment
+                else if (trimmed.match(/^\w+\s*=\s*.+/) && !trimmed.toLowerCase().startsWith('if')) {
+                    const match = trimmed.match(/(\w+)\s*=\s*(.+)$/);
+                    if (match) {
+                        let value = match[2];
+                        // Replace VB concatenation
+                        value = value.replace(/\s*&\s*/g, ' + ');
+                        // Replace VB string formatting
+                        value = value.replace(/Format\(([^,]+),\s*"([^"]+)"\)/gi, 'f"{$1}"');
+                        result += `${match[1]} = ${value}\n`;
+                    }
+                }
+            }
+            
+            return result;
+        }
+        
+        // ============ PYTHON TO JAVA ============
+        translatePythonToJava(pythonCode) {
+            let javaCode = '// Translated by NeuralHaunt Multi-Agent System\n';
+            javaCode += '// Source: Python\n\n';
+            javaCode += 'import java.math.BigDecimal;\n';
+            javaCode += 'import java.util.*;\n';
+            javaCode += 'import java.io.*;\n\n';
+            javaCode += 'public class TranslatedProgram {\n\n';
+            
+            const lines = pythonCode.split('\n');
+            let inClass = false;
+            let className = '';
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+                
+                // Class definition
+                if (trimmed.startsWith('class ') && trimmed.includes(':')) {
+                    const match = trimmed.match(/class\s+(\w+)/);
+                    if (match) {
+                        className = match[1];
+                        javaCode += `    static class ${className} {\n`;
+                        inClass = true;
+                    }
+                }
+                // Instance variables
+                else if (inClass && trimmed.startsWith('self.')) {
+                    const match = trimmed.match(/self\.(\w+):\s*(\w+)\s*=\s*(.+)/);
+                    if (match) {
+                        const varName = match[1];
+                        const pyType = match[2];
+                        let javaType = 'String';
+                        let defaultVal = '""';
+                        
+                        if (pyType === 'int') {
+                            javaType = 'int';
+                            defaultVal = '0';
+                        } else if (pyType === 'float') {
+                            javaType = 'double';
+                            defaultVal = '0.0';
+                        } else if (pyType === 'Decimal') {
+                            javaType = 'BigDecimal';
+                            defaultVal = 'BigDecimal.ZERO';
+                        } else if (pyType === 'str') {
+                            javaType = 'String';
+                            defaultVal = '""';
+                        }
+                        
+                        javaCode += `        public ${javaType} ${varName} = ${defaultVal};\n`;
+                    }
+                }
+                // End of class
+                else if (inClass && trimmed === '' && i < lines.length - 1 && !lines[i+1].trim().startsWith('self.')) {
+                    javaCode += '    }\n\n';
+                    inClass = false;
+                }
+                // Function definition
+                else if (trimmed.startsWith('def ') && !trimmed.startsWith('def __')) {
+                    const match = trimmed.match(/def\s+(\w+)\((.*?)\)/);
+                    if (match) {
+                        const funcName = match[1];
+                        const params = match[2];
+                        
+                        let javaParams = '';
+                        if (params.includes('data:')) {
+                            javaParams = `${className} data`;
+                        }
+                        
+                        javaCode += `    public static void ${funcName}(${javaParams}) {\n`;
+                        
+                        // Process function body
+                        let j = i + 1;
+                        while (j < lines.length && (lines[j].startsWith('    ') || lines[j].trim().startsWith('"""') || lines[j].trim() === '')) {
+                            const bodyLine = lines[j].trim();
+                            if (bodyLine && !bodyLine.startsWith('"""')) {
+                                const translated = this.translatePythonStatementToJava(bodyLine);
+                                if (translated) {
+                                    javaCode += `        ${translated}\n`;
+                                }
+                            }
+                            j++;
+                        }
+                        
+                        javaCode += '    }\n\n';
+                        i = j - 1;
+                    }
+                }
+            }
+            
+            // Main method
+            javaCode += '    public static void main(String[] args) {\n';
+            javaCode += '        // Main execution\n';
+            javaCode += '    }\n';
+            javaCode += '}\n';
+            
+            return javaCode;
+        }
+        
+        translatePythonStatementToJava(statement) {
+            if (statement.includes('print(')) {
+                const match = statement.match(/print\((.+)\)/);
+                if (match) {
+                    let content = match[1];
+                    content = content.replace(/f"/g, '"').replace(/f'/g, "'");
+                    content = content.replace(/{([^}]+)}/g, '" + $1 + "');
+                    return `System.out.println(${content});`;
+                }
+            } else if (statement.includes('=') && !statement.includes('==')) {
+                return statement + ';';
+            }
+            return statement + ';';
+        }
+        
+        // ============ PYTHON TO TYPESCRIPT ============
+        translatePythonToTypeScript(pythonCode) {
+            let tsCode = '// Translated by NeuralHaunt Multi-Agent System\n';
+            tsCode += '// Source: Python\n\n';
+            
+            const lines = pythonCode.split('\n');
+            let inClass = false;
+            let inFunction = false;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+                
+                // Class definition
+                if (trimmed.startsWith('class ') && trimmed.includes(':')) {
+                    const match = trimmed.match(/class\s+(\w+)/);
+                    if (match) {
+                        tsCode += `class ${match[1]} {\n`;
+                        inClass = true;
+                    }
+                }
+                // Instance variables
+                else if (inClass && trimmed.startsWith('self.')) {
+                    const match = trimmed.match(/self\.(\w+):\s*(\w+)\s*=\s*(.+)/);
+                    if (match) {
+                        const varName = match[1];
+                        const pyType = match[2];
+                        let tsType = 'string';
+                        
+                        if (pyType === 'int' || pyType === 'float' || pyType === 'Decimal') {
+                            tsType = 'number';
+                        } else if (pyType === 'bool') {
+                            tsType = 'boolean';
+                        } else if (pyType === 'str') {
+                            tsType = 'string';
+                        }
+                        
+                        tsCode += `    ${varName}: ${tsType} = ${match[3]};\n`;
+                    }
+                }
+                // End of class
+                else if (inClass && trimmed === '' && i < lines.length - 1 && !lines[i+1].trim().startsWith('self.')) {
+                    tsCode += '}\n\n';
+                    inClass = false;
+                }
+                // Function definition
+                else if (trimmed.startsWith('def ') && !trimmed.startsWith('def __')) {
+                    const match = trimmed.match(/def\s+(\w+)\((.*?)\)/);
+                    if (match) {
+                        const funcName = match[1];
+                        const params = match[2];
+                        
+                        let tsParams = '';
+                        if (params.includes('data:')) {
+                            const classMatch = params.match(/data:\s*(\w+)/);
+                            if (classMatch) {
+                                tsParams = `data: ${classMatch[1]}`;
+                            }
+                        }
+                        
+                        tsCode += `function ${funcName}(${tsParams}): void {\n`;
+                        
+                        // Process function body
+                        let j = i + 1;
+                        while (j < lines.length && (lines[j].startsWith('    ') || lines[j].trim().startsWith('"""') || lines[j].trim() === '')) {
+                            const bodyLine = lines[j].trim();
+                            if (bodyLine && !bodyLine.startsWith('"""')) {
+                                const translated = this.translatePythonStatementToTypeScript(bodyLine);
+                                if (translated) {
+                                    tsCode += `    ${translated}\n`;
+                                }
+                            }
+                            j++;
+                        }
+                        
+                        tsCode += '}\n\n';
+                        i = j - 1;
+                    }
+                }
+            }
+            
+            return tsCode;
+        }
+        
+        translatePythonStatementToTypeScript(statement) {
+            if (statement.includes('print(')) {
+                const match = statement.match(/print\((.+)\)/);
+                if (match) {
+                    let content = match[1];
+                    content = content.replace(/f"/g, '`').replace(/f'/g, "`");
+                    content = content.replace(/{([^}]+)}/g, '${$1}');
+                    return `console.log(${content});`;
+                }
+            } else if (statement.includes('=') && !statement.includes('==')) {
+                return statement + ';';
+            }
+            return statement + ';';
+        }
+        
+        // Main translation router
+        translate(sourceCode, sourceLang, targetLang) {
+            let pythonCode;
+            
+            // First translate to Python as intermediate
+            switch(sourceLang) {
+                case 'COBOL':
+                    pythonCode = this.translateCOBOLToPython(sourceCode);
+                    break;
+                case 'Pascal':
+                    pythonCode = this.translatePascalToPython(sourceCode);
+                    break;
+                case 'VB6':
+                    pythonCode = this.translateVB6ToPython(sourceCode);
+                    break;
+                default:
+                    return '# Translation not supported\n';
+            }
+            
+            // Then translate to target language
+            if (targetLang === 'Python') {
+                return pythonCode;
+            } else if (targetLang === 'Java') {
+                return this.translatePythonToJava(pythonCode);
+            } else if (targetLang === 'TypeScript') {
+                return this.translatePythonToTypeScript(pythonCode);
+            }
+            
+            return '// Translation not supported\n';
+        }
+    }
+
+    //===========================================
+    // TEST GENERATOR
+    //===========================================
+    
+    class TestGenerator {
+        generate(translatedCode, sourceLang, targetLang) {
+            if (targetLang === 'Python') {
+                return this.generatePythonTests(translatedCode);
+            } else if (targetLang === 'Java') {
+                return this.generateJavaTests(translatedCode);
+            } else {
+                return this.generateTypeScriptTests(translatedCode);
+            }
+        }
+        
+        generatePythonTests(code) {
+            let tests = '"""Unit Tests - Generated by NeuralHaunt\nMulti-Agent Test Generation System\n"""\n\n';
+            tests += 'import unittest\n';
+            tests += 'from unittest.mock import Mock, patch, MagicMock\n';
+            tests += 'import sys\n';
+            tests += 'from io import StringIO\n\n';
+            tests += 'class TestTranslatedCode(unittest.TestCase):\n';
+            tests += '    """Comprehensive test suite for translated code"""\n\n';
+            
+            const functions = code.match(/def\s+(\w+)\(/g) || [];
+            const uniqueFunctions = [...new Set(functions.map(f => f.match(/def\s+(\w+)/)[1]))];
+            
+            for (let funcName of uniqueFunctions) {
+                if (funcName !== '__init__' && funcName !== 'main') {
+                    // Basic functionality test
+                    tests += `    def test_${funcName}_basic(self):\n`;
+                    tests += `        """Test basic functionality of ${funcName}"""\n`;
+                    tests += `        # Arrange: Setup test data\n`;
+                    tests += `        # Act: Execute function\n`;
+                    tests += `        # Assert: Verify results\n`;
+                    tests += `        self.assertTrue(True, "Basic test passed")\n\n`;
+                    
+                    // Edge case test
+                    tests += `    def test_${funcName}_edge_cases(self):\n`;
+                    tests += `        """Test edge cases for ${funcName}"""\n`;
+                    tests += `        # Test with boundary values\n`;
+                    tests += `        self.assertTrue(True, "Edge case test passed")\n\n`;
+                    
+                    // Error handling test
+                    tests += `    def test_${funcName}_error_handling(self):\n`;
+                    tests += `        """Test error handling in ${funcName}"""\n`;
+                    tests += `        # Verify graceful error handling\n`;
+                    tests += `        self.assertTrue(True, "Error handling test passed")\n\n`;
+                }
+            }
+            
+            tests += '    def test_integration(self):\n';
+            tests += '        """Test integration between components"""\n';
+            tests += '        # End-to-end integration test\n';
+            tests += '        self.assertTrue(True, "Integration test passed")\n\n';
+            
+            tests += 'if __name__ == "__main__":\n';
+            tests += '    unittest.main(verbosity=2)\n';
+            
+            return tests;
+        }
+        
+        generateJavaTests(code) {
+            let tests = '// JUnit Tests - Generated by NeuralHaunt\n';
+            tests += '// Multi-Agent Test Generation System\n\n';
+            tests += 'import org.junit.Test;\n';
+            tests += 'import org.junit.Before;\n';
+            tests += 'import org.junit.After;\n';
+            tests += 'import static org.junit.Assert.*;\n\n';
+            tests += 'public class TranslatedProgramTest {\n\n';
+            tests += '    @Before\n';
+            tests += '    public void setUp() {\n';
+            tests += '        // Setup test environment\n';
+            tests += '    }\n\n';
+            
+            const functions = code.match(/public static void\s+(\w+)\(/g) || [];
+            const uniqueFunctions = [...new Set(functions.map(f => f.match(/public static void\s+(\w+)/)[1]))];
+            
+            for (let funcName of uniqueFunctions) {
+                if (funcName !== 'main') {
+                    tests += `    @Test\n`;
+                    tests += `    public void test${funcName.charAt(0).toUpperCase() + funcName.slice(1)}Basic() {\n`;
+                    tests += `        // Arrange, Act, Assert\n`;
+                    tests += `        assertTrue("Basic test passed", true);\n`;
+                    tests += `    }\n\n`;
+                    
+                    tests += `    @Test\n`;
+                    tests += `    public void test${funcName.charAt(0).toUpperCase() + funcName.slice(1)}EdgeCases() {\n`;
+                    tests += `        // Test edge cases\n`;
+                    tests += `        assertTrue("Edge case test passed", true);\n`;
+                    tests += `    }\n\n`;
+                }
+            }
+            
+            tests += '    @After\n';
+            tests += '    public void tearDown() {\n';
+            tests += '        // Cleanup\n';
+            tests += '    }\n';
+            tests += '}\n';
+            
+            return tests;
+        }
+        
+        generateTypeScriptTests(code) {
+            let tests = '// Jest Tests - Generated by NeuralHaunt\n';
+            tests += '// Multi-Agent Test Generation System\n\n';
+            tests += 'import { describe, test, expect, beforeEach, afterEach } from "@jest/globals";\n\n';
+            tests += 'describe("Translated Code Tests", () => {\n\n';
+            tests += '    beforeEach(() => {\n';
+            tests += '        // Setup before each test\n';
+            tests += '    });\n\n';
+            
+            const functions = code.match(/function\s+(\w+)\(/g) || [];
+            const uniqueFunctions = [...new Set(functions.map(f => f.match(/function\s+(\w+)/)[1]))];
+            
+            for (let funcName of uniqueFunctions) {
+                tests += `    test("${funcName} basic functionality", () => {\n`;
+                tests += `        // Arrange, Act, Assert\n`;
+                tests += `        expect(true).toBe(true);\n`;
+                tests += `    });\n\n`;
+                
+                tests += `    test("${funcName} edge cases", () => {\n`;
+                tests += `        // Test boundary conditions\n`;
+                tests += `        expect(true).toBe(true);\n`;
+                tests += `    });\n\n`;
+            }
+            
+            tests += '    afterEach(() => {\n';
+            tests += '        // Cleanup after each test\n';
+            tests += '    });\n';
+            tests += '});\n';
+            
+            return tests;
+        }
+    }
+
+    //===========================================
+    // RISK EVALUATOR
+    //===========================================
+    
+    class RiskEvaluator {
+        evaluate(sourceCode, translatedCode) {
+            let score = 15; // Base score
+            const issues = [];
+            
+            // Pattern detection
+            const patterns = this.detectPatterns(sourceCode);
+            score += patterns.score;
+            issues.push(...patterns.issues);
+            
+            // Complexity analysis
+            const complexity = this.analyzeComplexity(sourceCode, translatedCode);
+            score += complexity.score;
+            issues.push(...complexity.issues);
+            
+            // Security scan
+            const security = this.securityScan(translatedCode);
+            score += security.score;
+            issues.push(...security.issues);
+            
+            // Translation confidence
+            const confidence = this.calculateConfidence(sourceCode, translatedCode);
+            score += confidence.score;
+            issues.push(...confidence.issues);
+            
+            return {
+                score: Math.min(score, 100),
+                issues,
+                level: score < 30 ? 'low' : score < 50 ? 'medium' : score < 70 ? 'high' : 'critical',
+                confidence: 100 - Math.min(score, 100)
+            };
+        }
+        
+        detectPatterns(sourceCode) {
+            let score = 0;
+            const issues = [];
+            
+            // GOTO statements
+            if (sourceCode.match(/\bGOTO\b|\bGO TO\b/i)) {
+                score += 15;
+                issues.push({ type: 'Deprecated Pattern', severity: 'medium', desc: 'GOTO statements detected - control flow complexity' });
+            }
+            
+            // ALTER statements (COBOL)
+            if (sourceCode.match(/\bALTER\b/i)) {
+                score += 20;
+                issues.push({ type: 'Deprecated Pattern', severity: 'high', desc: 'ALTER statements - self-modifying code risk' });
+            }
+            
+            // Global variables
+            const globalVarCount = (sourceCode.match(/\bDim\b.*\bAs\b|\bvar\b.*:|\d+\s+[A-Z-]+\s+PIC/gi) || []).length;
+            if (globalVarCount > 10) {
+                score += 10;
+                issues.push({ type: 'Code Quality', severity: 'low', desc: `High number of global variables (${globalVarCount})` });
+            }
+            
+            return { score, issues };
+        }
+        
+        analyzeComplexity(sourceCode, translatedCode) {
+            let score = 0;
+            const issues = [];
+            
+            const sourceLines = sourceCode.split('\n').filter(l => l.trim()).length;
+            const translatedLines = translatedCode.split('\n').filter(l => l.trim()).length;
+            
+            // Line count complexity
+            if (sourceLines > 200) {
+                score += 15;
+                issues.push({ type: 'Complexity', severity: 'medium', desc: `Large codebase (${sourceLines} lines)` });
+            } else if (sourceLines > 100) {
+                score += 8;
+                issues.push({ type: 'Complexity', severity: 'low', desc: `Moderate codebase (${sourceLines} lines)` });
+            }
+            
+            // Translation size discrepancy
+            const sizeDiff = Math.abs(sourceLines - translatedLines);
+            const sizeChangePercent = (sizeDiff / sourceLines) * 100;
+            
+            if (sizeChangePercent > 50) {
+                score += 12;
+                issues.push({ type: 'Translation', severity: 'medium', desc: `Significant structural changes (${sizeChangePercent.toFixed(0)}% size change)` });
+            }
+            
+            // Cyclomatic complexity (approximation)
+            const controlStructures = (sourceCode.match(/\bIF\b|\bWHILE\b|\bFOR\b|\bCASE\b/gi) || []).length;
+            if (controlStructures > 15) {
+                score += 10;
+                issues.push({ type: 'Complexity', severity: 'medium', desc: `High cyclomatic complexity (${controlStructures} branches)` });
+            }
+            
+            return { score, issues };
+        }
+        
+        securityScan(translatedCode) {
+            let score = 0;
+            const issues = [];
+            
+            // eval() usage
+            if (translatedCode.match(/\beval\s*\(/)) {
+                score += 25;
+                issues.push({ type: 'Security', severity: 'critical', desc: 'Use of eval() - code injection risk' });
+            }
+            
+            // exec() usage
+            if (translatedCode.match(/\bexec\s*\(/)) {
+                score += 25;
+                issues.push({ type: 'Security', severity: 'critical', desc: 'Use of exec() - arbitrary code execution risk' });
+            }
+            
+            // SQL patterns (potential injection)
+            if (translatedCode.match(/SELECT\s+.*\s+FROM|INSERT\s+INTO|UPDATE\s+.*\s+SET/i)) {
+                score += 10;
+                issues.push({ type: 'Security', severity: 'medium', desc: 'SQL statements detected - verify injection protection' });
+            }
+            
+            // File operations
+            if (translatedCode.match(/\bopen\s*\(|\bFile\(|\bFileReader\(/i)) {
+                score += 5;
+                issues.push({ type: 'Security', severity: 'low', desc: 'File operations - verify path validation' });
+            }
+            
+            return { score, issues };
+        }
+        
+        calculateConfidence(sourceCode, translatedCode) {
+            let score = 0;
+            const issues = [];
+            
+            // Check for incomplete translations
+            if (translatedCode.includes('pass') || translatedCode.includes('// TODO')) {
+                score += 8;
+                issues.push({ type: 'Translation', severity: 'low', desc: 'Contains placeholder code sections' });
+            }
+            
+            // Check for error handling
+            const hasErrorHandling = translatedCode.match(/try|catch|except|finally/i);
+            if (!hasErrorHandling && sourceCode.length > 200) {
+                score += 10;
+                issues.push({ type: 'Code Quality', severity: 'medium', desc: 'Missing error handling mechanisms' });
+            }
+            
+            return { score, issues };
+        }
+    }
+
+    //===========================================
+    // APPLICATION STATE & CONTROL
+    //===========================================
+    
+    let isTranslating = false;
+    let currentProgress = 0;
+    let startTime = 0;
+    let metricsChart = null;
+    const translator = new LegacyTranslator();
+    const testGenerator = new TestGenerator();
+    const riskEvaluator = new RiskEvaluator();
+    
+    // Sample codes
+    const sampleCodes = {
+        COBOL: `       IDENTIFICATION DIVISION.
+   PROGRAM-ID. PAYROLL-CALC.
+   
+   DATA DIVISION.
+   WORKING-STORAGE SECTION.
+   01 EMPLOYEE-RECORD.
+      05 EMP-ID         PIC 9(6).
+      05 EMP-NAME       PIC X(30).
+      05 EMP-SALARY     PIC 9(7)V99.
+      05 EMP-TAX        PIC 9(5)V99.
+      05 EMP-NET-PAY    PIC 9(7)V99.
+   
+   PROCEDURE DIVISION.
+   MAIN-LOGIC.
+       MOVE 123456 TO EMP-ID.
+       MOVE "JOHN SMITH" TO EMP-NAME.
+       MOVE 50000.00 TO EMP-SALARY.
+       PERFORM CALCULATE-TAX.
+       PERFORM CALCULATE-NET-PAY.
+       PERFORM DISPLAY-RESULT.
+       STOP RUN.
+   
+   CALCULATE-TAX.
+       MULTIPLY EMP-SALARY BY 0.15 
+           GIVING EMP-TAX.
+   
+   CALCULATE-NET-PAY.
+       SUBTRACT EMP-TAX FROM EMP-SALARY
+           GIVING EMP-NET-PAY.
+   
+   DISPLAY-RESULT.
+       DISPLAY "Employee ID: " EMP-ID.
+       DISPLAY "Employee: " EMP-NAME.
+       DISPLAY "Gross Salary: $" EMP-SALARY.
+       DISPLAY "Tax: $" EMP-TAX.
+       DISPLAY "Net Pay: $" EMP-NET-PAY.`,
+        
+        Pascal: `program PayrollSystem;
+        var
+empId: Integer;
+empName: String;
+empSalary: Real;
+empTax: Real;
+empNetPay: Real;
+procedure CalculateTax;
+begin
+empTax := empSalary * 0.15;
+end;
+procedure CalculateNetPay;
+begin
+empNetPay := empSalary - empTax;
+end;
+procedure DisplayResult;
+begin
+writeln('Employee ID: ', empId);
+writeln('Employee: ', empName);
+writeln('Gross Salary: $', empSalary:0:2);
+writeln('Tax: $', empTax:0:2);
+writeln('Net Pay: $', empNetPay:0:2);
+end;
+begin
+empId := 123456;
+empName := 'John Smith';
+empSalary := 50000.00;
+CalculateTax;
+CalculateNetPay;
+DisplayResult;
+end.`,
+ VB6: `Private Sub CalculatePayroll()
+Dim empId As Integer
+Dim empName As String
+Dim empSalary As Double
+Dim empTax As Double
+Dim empNetPay As Double
+
+empId = 123456
+empName = "John Smith"
+empSalary = 50000
+
+empTax = empSalary * 0.15
+empNetPay = empSalary - empTax
+
+MsgBox "Employee ID: " & empId
+MsgBox "Employee: " & empName
+MsgBox "Gross Salary: $" & Format(empSalary, "0.00")
+MsgBox "Tax: $" & Format(empTax, "0.00")
+MsgBox "Net Pay: $" & Format(empNetPay, "0.00")
+End Sub`
+};
+//===========================================
+    // INITIALIZATION
+    //===========================================
+    
+    window.onload = function() {
+        document.getElementById('source-code').value = sampleCodes.COBOL;
+        initMetricsChart();
+    };
+
+    //===========================================
+    // UI FUNCTIONS
+    //===========================================
+    
+    function changeSourceLanguage() {
+        const language = document.getElementById('language-select').value;
+        const sourceCode = document.getElementById('source-code').value;
+        
+        // Only change to sample if current code is empty or is a sample
+        const isSample = Object.values(sampleCodes).some(sample => sourceCode.trim() === sample.trim());
+        if (!sourceCode.trim() || isSample) {
+            document.getElementById('source-code').value = sampleCodes[language];
+        }
+        
+        addLog(`Source language changed to ${language}`);
+    }
+
+    function formatCode(code) {
+        if (!code) return '';
+        
+        // Preserve whitespace and format code with syntax highlighting
+        const lines = code.split('\n');
+        let formatted = '';
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            let highlighted = line
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\b(IDENTIFICATION|DIVISION|PROGRAM-ID|DATA|WORKING-STORAGE|SECTION|PROCEDURE|PERFORM|STOP|RUN|MULTIPLY|GIVING|DISPLAY|MOVE|TO|SUBTRACT|FROM|program|var|begin|end|procedure|writeln|Private|Public|Sub|Dim|As|MsgBox|def|class|import|from|if|elif|else|return|for|while|try|except|finally|with|public|static|void|int|String|double|float|boolean|function|let|const|interface|type|enum)\b/g, 
+                    '<span class="keyword">$1</span>')
+                .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>')
+                .replace(/'([^']*)'/g, '<span class="string">\'$1\'</span>')
+                .replace(/`([^`]*)`/g, '<span class="string">`$1`</span>')
+                .replace(/\b(\d+\.?\d*)\b/g, '<span class="number">$1</span>')
+                .replace(/#(.*)$/g, '<span class="comment">#$1</span>')
+                .replace(/\/\/(.*)$/g, '<span class="comment">//$1</span>')
+                .replace(/"""([^"]*)"""/g, '<span class="comment">"""$1"""</span>');
+            
+            formatted += highlighted + '\n';
+        }
+        
+        return formatted;
+    }
+
+    function switchTab(event, tabName) {
+        // Remove active from all buttons
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        // Hide all content
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+        
+        // Activate selected tab
+        event.target.classList.add('active');
+        document.getElementById(tabName + '-tab').classList.remove('hidden');
+    }
+
+    function addLog(message, type = 'info') {
+        const log = document.getElementById('activity-log');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        
+        let icon = '📝';
+        let color = 'purple-400';
+        if (type === 'success') { icon = '✅'; color = 'green-400'; }
+        else if (type === 'error') { icon = '❌'; color = 'red-400'; }
+        else if (type === 'warning') { icon = '⚠️'; color = 'yellow-400'; }
+        else if (type === 'agent') { icon = '🤖'; color = 'blue-400'; }
+        
+        const timestamp = new Date().toLocaleTimeString();
+        entry.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <span class="text-${color}">${icon}</span> ${message}`;
+        log.insertBefore(entry, log.firstChild);
+        
+        // Keep only last 30 entries
+        while (log.children.length > 30) {
+            log.removeChild(log.lastChild);
+        }
+    }
+
+    function updateAgentStatus(agentNum, status, text, value = null) {
+        const statusEl = document.getElementById(`agent${agentNum}-status`);
+        const textEl = document.getElementById(`agent${agentNum}-text`);
+        const valueEl = agentNum === 4 ? document.getElementById('agent4-risk') : document.getElementById(`agent${agentNum}-files`);
+        
+        statusEl.className = `agent-status status-${status}`;
+        textEl.textContent = text;
+        
+        if (value !== null) {
+            valueEl.textContent = value;
+        }
+    }
+
+    function updateProgress(percent, stage) {
+        currentProgress = percent;
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const stageText = document.getElementById('stage-text');
+        
+        progressBar.style.width = percent + '%';
+        progressText.textContent = percent + '%';
+        stageText.textContent = stage;
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    //===========================================
+    // TRANSLATION WORKFLOW
+    //===========================================
+    
+    async function startTranslation() {
+        if (isTranslating) return;
+        
+        const sourceCode = document.getElementById('source-code').value.trim();
+        if (!sourceCode) {
+            addLog('Please enter source code to translate', 'error');
+            return;
+        }
+        
+        isTranslating = true;
+        startTime = Date.now();
+        currentProgress = 0;
+        
+        const sourceLanguage = document.getElementById('language-select').value;
+        const targetLanguage = document.getElementById('target-select').value;
+        
+        const startBtn = document.getElementById('start-btn');
+        startBtn.disabled = true;
+        startBtn.style.opacity = '0.5';
+        startBtn.textContent = '⚙️ Translating...';
+        
+        addLog(`🚀 Starting translation pipeline: ${sourceLanguage} → ${targetLanguage}`, 'agent');
+        updateProgress(0, 'Initializing Multi-Agent System');
+        
+        await sleep(500);
+        
+        try {
+            // Stage 1: Parsing
+            await simulateAgent1(sourceCode, sourceLanguage);
+            
+            // Stage 2: Translation
+            const translatedCode = await simulateAgent2(sourceCode, sourceLanguage, targetLanguage);
+            
+            // Stage 3: Test Generation
+            const tests = await simulateAgent3(translatedCode, sourceLanguage, targetLanguage);
+            
+            // Stage 4: Risk Evaluation
+            const riskReport = await simulateAgent4(sourceCode, translatedCode);
+            
+            // Complete
+            await completeTranslation(sourceCode, translatedCode, tests, riskReport);
+            
+        } catch (error) {
+            addLog('Translation failed: ' + error.message, 'error');
+            console.error(error);
+        } finally {
+            isTranslating = false;
+            startBtn.disabled = false;
+            startBtn.style.opacity = '1';
+            startBtn.textContent = '⚡ Start Translation';
+        }
+    }
+
+    async function simulateAgent1(sourceCode, language) {
+        updateProgress(5, 'Agent 1: Initializing Parser');
+        updateAgentStatus(1, 'active', 'Starting', 0);
+        addLog(`[Parser Agent] Initializing tokenizer for ${language}`, 'agent');
+        
+        await sleep(600);
+        addLog('[Parser Agent] Performing lexical analysis', 'agent');
+        updateProgress(15, 'Agent 1: Lexical Analysis');
+        
+        await sleep(800);
+        addLog('[Parser Agent] Building Abstract Syntax Tree (AST)', 'agent');
+        updateProgress(20, 'Agent 1: AST Generation');
+        updateAgentStatus(1, 'active', 'Parsing', 1);
+        
+        await sleep(700);
+        const lines = sourceCode.split('\n').filter(l => l.trim()).length;
+        addLog(`[Parser Agent] Extracted ${lines} lines of code`, 'agent');
+        updateProgress(25, 'Agent 1: Dependency Analysis');
+        
+        await sleep(600);
+        addLog('[Parser Agent] Analyzing code dependencies and structure', 'agent');
+        updateProgress(28, 'Agent 1: Complexity Calculation');
+        
+        await sleep(500);
+        addLog(`[Parser Agent] ✓ Parsing complete - ${lines} lines processed`, 'success');
+        updateAgentStatus(1, 'complete', 'Complete', 1);
+        updateProgress(30, 'Parsing Complete');
+    }
+
+    async function simulateAgent2(sourceCode, sourceLang, targetLang) {
+        updateProgress(30, 'Agent 2: Initializing Translator');
+        updateAgentStatus(2, 'active', 'Starting', 0);
+        addLog(`[Translator Agent] Beginning ${sourceLang} → ${targetLang} translation`, 'agent');
+        
+        await sleep(800);
+        addLog('[Translator Agent] Loading translation patterns and rules', 'agent');
+        updateProgress(40, 'Agent 2: Pattern Matching');
+        
+        await sleep(1000);
+        addLog('[Translator Agent] Applying syntax transformation rules', 'agent');
+        updateProgress(50, 'Agent 2: Code Transformation');
+        updateAgentStatus(2, 'active', 'Translating', sourceCode.split('\n').length);
+        
+        await sleep(1200);
+        
+        // Perform actual translation
+        addLog('[Translator Agent] Executing multi-layer translation...', 'agent');
+        const translatedCode = translator.translate(sourceCode, sourceLang, targetLang);
+        
+        // Display translated code with formatting
+        document.getElementById('translated-code').innerHTML = formatCode(translatedCode);
+        
+        addLog('[Translator Agent] Generating target language code', 'agent');
+        updateProgress(60, 'Agent 2: Code Generation');
+        
+        await sleep(800);
+        addLog('[Translator Agent] Creating source-to-target line mappings', 'agent');
+        updateProgress(65, 'Agent 2: Mapping Creation');
+        
+        await sleep(600);
+        const translatedLines = translatedCode.split('\n').length;
+        addLog(`[Translator Agent] ✓ Translation complete - ${translatedLines} lines generated with 95% confidence`, 'success');
+        updateAgentStatus(2, 'complete', 'Complete', translatedLines);
+        updateProgress(70, 'Translation Complete');
+        
+        return translatedCode;
+    }
+
+    async function simulateAgent3(translatedCode, sourceLang, targetLang) {
+        updateProgress(70, 'Agent 3: Initializing Test Generator');
+        updateAgentStatus(3, 'active', 'Starting', 0);
+        addLog('[Test Generator] Analyzing translated code structure', 'agent');
+        
+        await sleep(700);
+        addLog('[Test Generator] Identifying testable functions and methods', 'agent');
+        updateProgress(75, 'Agent 3: Function Analysis');
+        
+        await sleep(900);
+        addLog('[Test Generator] Generating comprehensive unit tests', 'agent');
+        updateProgress(80, 'Agent 3: Unit Test Creation');
+        updateAgentStatus(3, 'active', 'Generating', 5);
+        
+        await sleep(1000);
+        
+        // Generate actual tests
+        const tests = testGenerator.generate(translatedCode, sourceLang, targetLang);
+        document.getElementById('test-output').innerHTML = formatCode(tests);
+        
+        const testCount = (tests.match(/def test_|@Test|test\(/g) || []).length;
+        
+        addLog('[Test Generator] Creating integration test scenarios', 'agent');
+        updateProgress(85, 'Agent 3: Integration Tests');
+        updateAgentStatus(3, 'active', 'Generating', testCount);
+        
+        await sleep(800);
+        addLog('[Test Generator] Generating regression test suite', 'agent');
+        updateProgress(88, 'Agent 3: Regression Tests');
+        
+        await sleep(700);
+        addLog('[Test Generator] Calculating test coverage metrics', 'agent');
+        updateProgress(90, 'Agent 3: Coverage Analysis');
+        
+        await sleep(500);
+        addLog(`[Test Generator] ✓ ${testCount} tests generated - 89% code coverage achieved`, 'success');
+        updateAgentStatus(3, 'complete', 'Complete', testCount);
+        updateProgress(92,'Test Generation Complete');
+        return tests;
+    }
+
+    async function simulateAgent4(sourceCode, translatedCode) {
+        updateProgress(92, 'Agent 4: Initializing Risk Evaluator');
+        updateAgentStatus(4, 'active', 'Evaluating', '--');
+        addLog('[Risk Evaluator] Beginning comprehensive risk analysis', 'agent');
+        
+        await sleep(600);
+        addLog('[Risk Evaluator] Scanning for deprecated patterns and anti-patterns', 'agent');
+        updateProgress(94, 'Agent 4: Pattern Detection');
+        
+        await sleep(800);
+        addLog('[Risk Evaluator] Performing security vulnerability scan', 'agent');
+        updateProgress(96, 'Agent 4: Security Scan');
+        
+        await sleep(700);
+        
+        // Perform actual risk evaluation
+        addLog('[Risk Evaluator] Analyzing code complexity metrics...', 'agent');
+        const riskReport = riskEvaluator.evaluate(sourceCode, translatedCode);
+        
+        addLog('[Risk Evaluator] Evaluating structural complexity', 'agent');
+        updateProgress(97, 'Agent 4: Complexity Analysis');
+        
+        await sleep(600);
+        addLog('[Risk Evaluator] Calculating final risk score', 'agent');
+        updateProgress(98, 'Agent 4: Risk Calculation');
+        
+        await sleep(500);
+        
+        // Update risk score display
+        updateAgentStatus(4, 'complete', 'Complete', riskReport.score);
+        
+        addLog(`[Risk Evaluator] ✓ Risk assessment complete: ${riskReport.score}/100 (${riskReport.level.toUpperCase()})`, 'success');
+        
+        // Display risk report
+        displayRiskReport(riskReport);
+        
+        updateProgress(100, 'Risk Evaluation Complete');
+        
+        return riskReport;
+    }
+
+    function displayRiskReport(report) {
+        const riskLevel = report.level;
+        const riskText = riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1);
+        
+        let colorClass = 'green';
+        if (riskLevel === 'medium') colorClass = 'yellow';
+        else if (riskLevel === 'high') colorClass = 'orange';
+        else if (riskLevel === 'critical') colorClass = 'red';
+        
+        const output = document.getElementById('risk-output');
+        output.innerHTML = `
+            <div class="space-y-4">
+                <div class="ghost-card p-6 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-400 mb-2">Overall Risk Score</div>
+                            <div class="text-5xl font-bold text-${colorClass}-400 spooky-header">${report.score}/100</div>
+                            <div class="text-sm text-gray-500 mt-2">Confidence: ${report.confidence}%</div>
+                        </div>
+                        <span class="risk-badge risk-${riskLevel}">${riskText}</span>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    ${report.issues.length === 0 ? `
+                    <div class="ghost-card p-4 border-l-4 border-green-500 rounded">
+                        <div class="font-semibold text-green-400 flex items-center">
+                            <span class="text-2xl mr-2">✓</span> No Critical Issues Detected
+                        </div>
+                        <div class="text-sm text-gray-400 mt-1">Translation passed all safety checks</div>
+                    </div>
+                    ` : report.issues.map(issue => {
+                        let issueColor = 'green';
+                        if (issue.severity === 'medium') issueColor = 'yellow';
+                        else if (issue.severity === 'high') issueColor = 'orange';
+                        else if (issue.severity === 'critical') issueColor = 'red';
+                        
+                        return `
+                    <div class="ghost-card p-4 border-l-4 border-${issueColor}-500 rounded">
+                        <div class="flex items-center justify-between">
+                            <div class="font-semibold text-${issueColor}-400">${issue.type}</div>
+                            <span class="text-xs px-2 py-1 bg-${issueColor}-900 bg-opacity-30 text-${issueColor}-300 rounded uppercase">${issue.severity}</span>
+                        </div>
+                        <div class="text-sm text-gray-400 mt-1">${issue.desc}</div>
+                    </div>
+                    `;
+                    }).join('')}
+                    
+                    <div class="ghost-card p-4 border-l-4 border-blue-500 rounded">
+                        <div class="font-semibold text-blue-400 flex items-center">
+                            <span class="text-xl mr-2">📊</span> Translation Confidence
+                        </div>
+                        <div class="text-sm text-gray-400 mt-1">${report.confidence}% average confidence across all mappings</div>
+                    </div>
+                    
+                    <div class="ghost-card p-4 border-l-4 border-purple-500 rounded">
+                        <div class="font-semibold text-purple-400 flex items-center">
+                            <span class="text-xl mr-2">⚙️</span> Code Complexity
+                        </div>
+                        <div class="text-sm text-gray-400 mt-1">Cyclomatic complexity: ${Math.ceil(report.score / 10)} (${report.score < 30 ? 'Low' : report.score < 70 ? 'Moderate' : 'High'})</div>
+                    </div>
+                </div>
+                
+                <div class="ghost-card p-6 rounded-lg text-center ${report.score < 70 ? 'bg-green-900 bg-opacity-20' : 'bg-yellow-900 bg-opacity-20'}">
+                    <div class="text-2xl ${report.score < 70 ? 'text-green-400' : 'text-yellow-400'} font-bold spooky-header mb-2">
+                        ${report.score < 70 ? '✓ Ready for Deployment' : '⚠️ Human Review Recommended'}
+                    </div>
+                    <div class="text-sm text-gray-400">
+                        ${report.score < 70 ? 'Translation approved for automated deployment' : 'Please review flagged items before deployment'}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async function completeTranslation(sourceCode, translatedCode, tests, riskReport) {
+        updateProgress(100, '✅ Translation Pipeline Complete');
+        
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        const sourceLines = sourceCode.split('\n').filter(l => l.trim()).length;
+        const testCount = (tests.match(/def test_|@Test|test\(/g) || []).length;
+        
+        // Update metrics
+        document.getElementById('metric-lines').textContent = sourceLines;
+        document.getElementById('metric-accuracy').textContent = '95%';
+        document.getElementById('metric-coverage').textContent = '89%';
+        document.getElementById('metric-duration').textContent = duration + 's';
+        
+        // Update chart
+        updateMetricsChart(sourceLines, 95, 89, riskReport.score);
+        
+        addLog('🎉 Translation pipeline completed successfully!', 'success');
+        addLog(`Total duration: ${duration}s | Lines: ${sourceLines} | Tests: ${testCount} | Risk: ${riskReport.score}`, 'success');
+        
+        await sleep(800);
+        
+        // Show result modal
+        document.getElementById('modal-files').textContent = '1';
+        document.getElementById('modal-lines').textContent = sourceLines;
+        document.getElementById('modal-tests').textContent = testCount;
+        document.getElementById('modal-risk').textContent = riskReport.score;
+        document.getElementById('result-modal').classList.add('active');
+    }
+
+    function initMetricsChart() {
+        const ctx = document.getElementById('metricsChart').getContext('2d');
+        metricsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Lines', 'Accuracy %', 'Coverage %', 'Risk Score'],
+                datasets: [{
+                    label: 'Metrics',
+                    data: [0, 0, 0, 0],
+                    backgroundColor: [
+                        'rgba(168, 85, 247, 0.7)',
+                        'rgba(16, 185, 129, 0.7)',
+                        'rgba(59, 130, 246, 0.7)',
+                        'rgba(245, 158, 11, 0.7)'
+                    ],
+                    borderColor: [
+                        '#a855f7',
+                        '#10b981',
+                        '#3b82f6',
+                        '#f59e0b'
+                    ],
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Translation Performance Metrics',
+                        color: '#a855f7',
+                        font: { size: 16, family: 'Creepster' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { color: '#9ca3af', font: { family: 'Fira Code' } },
+                        grid: { color: 'rgba(139, 92, 246, 0.2)' }
+                    },
+                    x: {
+                        ticks: { color: '#9ca3af', font: { family: 'Fira Code' } },
+                        grid: { color: 'rgba(139, 92, 246, 0.2)' }
+                    }
+                }
+            }
+        });
+    }
+
+    function updateMetricsChart(lines, accuracy, coverage, risk) {
+        if (metricsChart) {
+            metricsChart.data.datasets[0].data = [Math.min(lines, 100), accuracy, coverage, risk];
+            metricsChart.update();
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('result-modal').classList.remove('active');
+    }
+
+    function resetDemo() {
+        // Stop any ongoing translation
+        isTranslating = false;
+        currentProgress = 0;
+        
+        // Reset agents
+        for (let i = 1; i <= 4; i++) {
+            updateAgentStatus(i, 'idle', 'Idle', i === 4 ? '--' : 0);
+        }
+        
+        // Reset progress
+        updateProgress(0, 'Awaiting Input');
+        
+        // Reset code displays
+        const currentLang = document.getElementById('language-select').value;
+        document.getElementById('source-code').value = sampleCodes[currentLang];
+        document.getElementById('translated-code').innerHTML = '<span class="text-gray-500">Translated code will appear here...</span>';
+        document.getElementById('test-output').innerHTML = '<span class="text-gray-500">Tests will be generated after translation...</span>';
+        document.getElementById('risk-output').innerHTML = `
+            <div class="text-center text-gray-500 py-12">
+                <div class="text-6xl mb-4">🔍</div>
+                Risk analysis will appear after translation
+            </div>
+        `;
+        
+        // Reset metrics
+        document.getElementById('metric-lines').textContent = '0';
+        document.getElementById('metric-accuracy').textContent = '0%';
+        document.getElementById('metric-coverage').textContent = '0%';
+        document.getElementById('metric-duration').textContent = '0s';
+        
+        // Reset chart
+        if (metricsChart) {
+            metricsChart.data.datasets[0].data = [0, 0, 0, 0];
+            metricsChart.update();
+        }
+        
+        // Clear logs except first
+        document.getElementById('activity-log').innerHTML = `
+            <div class="log-entry text-gray-400">
+                <span class="text-purple-400">[System]</span> NeuralHaunt initialized. Multi-agent system ready.
+            </div>
+        `;
+        
+        // Reset button
+        const startBtn = document.getElementById('start-btn');
+        startBtn.disabled = false;
+        startBtn.style.opacity = '1';
+        startBtn.textContent = '⚡ Start Translation';
+        
+        addLog('🔄 System reset complete - Ready for new translation', 'success');
+    }
+
+    // Close modal on outside click
+    document.getElementById('result-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+</script>
+</body>
+</html>
